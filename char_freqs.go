@@ -1,13 +1,58 @@
 package main
-import "fmt"
-import "strings"
+import (
+	"fmt"
+	"strings"
+	"strconv"
+	"math"
+)
 
 func main() {
-	char_freq1 := char_freqs()
-	fmt.Println(char_freq1)
-	s := "This is a test"
-	fmt.Println(WordCount(s))
+	// char_freq1 := char_freqs()
+	// fmt.Println(char_freq1)
+	s := "qqqqqqqqqqqqqqqqqqqqqqqq"
+	// fmt.Println(CharCount(s))
+	fmt.Println(scoreText(s))
 }
+
+func replace_punctuation(plaintext string)string {
+	punctuation := strings.Split("\n .,';’0123456789()&^%$#@!}{][:?/><=+","")
+	for _, c := range punctuation {
+		strings.Replace(plaintext, c, "", -1)
+	}
+    return plaintext
+}
+func scoreText(plaintext string)float32 {
+    // Score a string according to how its character frequencies correspond to the "ETAOINSHRDLU" rule
+
+    // Args:
+    //     mystring: case-insensitive string of purported English
+    // Returns:
+    //     Score: the lower the better
+	
+	expected := char_freqs()
+    plaintext = replace_punctuation(plaintext)
+	plaintext = strings.ToLower(plaintext)
+	plaintext2 := strings.Split(plaintext,"")
+	frequencies := make(map[string]float32)
+	for i:=0; i<128; i++ {
+		frequencies[strconv.Itoa(i)] = 0
+	}
+    for _, c := range plaintext2 {
+		frequencies[c] += 1.0/float32(len(plaintext2))
+	}
+	score := float32(0.0)
+    for i :=0; i<128; i++ {
+		c:=string(rune(i))
+		delta := expected[c]-frequencies[c]
+        if i>=128 {
+            delta = 4*delta*delta
+		} else { 
+			delta = delta*delta
+		}
+		score += delta
+	}
+	return float32(math.Sqrt(float64(score)))
+	}
 
 func char_freqs() map[string] float32 {
 	var freq_map = map[string] float32{
@@ -40,7 +85,7 @@ func char_freqs() map[string] float32 {
 	}
 	return freq_map
 }
-func WordCount(s string) map[string]int {
+func CharCount(s string) map[string]int {
 	retval := make(map[string]int)
 	fields := strings.Split(s,"")
 	for _, field := range fields {
