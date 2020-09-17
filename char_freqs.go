@@ -6,13 +6,13 @@ import (
 	"math"
 )
 
-func main() {
-	// char_freq1 := char_freqs()
-	// fmt.Println(char_freq1)
-	s := "qqqqqqqqqqqqqqqqqqqqqqqq"
-	// fmt.Println(CharCount(s))
-	fmt.Println(scoreText(s))
-}
+// func main() {
+// 	// char_freq1 := char_freqs()
+// 	// fmt.Println(char_freq1)
+// 	s := "eeeeeeeeeeeeeeeeeeetttttttttaaaaaooo"
+// 	// fmt.Println(CharCount(s))
+// 	fmt.Println(scoreText(s))
+// }
 
 func replace_punctuation(plaintext string)string {
 	punctuation := strings.Split("\n .,';’0123456789()&^%$#@!}{][:?/><=+","")
@@ -38,12 +38,15 @@ func scoreText(plaintext string)float32 {
 		frequencies[strconv.Itoa(i)] = 0
 	}
     for _, c := range plaintext2 {
+		fmt.Println(c)
 		frequencies[c] += 1.0/float32(len(plaintext2))
 	}
+	fmt.Println(frequencies)
 	score := float32(0.0)
     for i :=0; i<128; i++ {
 		c:=string(rune(i))
 		delta := expected[c]-frequencies[c]
+		// fmt.Println(delta)
         if i>=128 {
             delta = 4*delta*delta
 		} else { 
