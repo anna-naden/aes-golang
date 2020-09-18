@@ -2,7 +2,7 @@ package main
 
 import "encoding/binary"
 
-func make_decryption_state(theBytes []byte) DECRYPTION_STATE {
+func make_decryption_state(theBytes []byte) STATE {
 	out := STATE{}
 	j := 0
 	for row := 0; row < 4; row++ {
@@ -11,7 +11,7 @@ func make_decryption_state(theBytes []byte) DECRYPTION_STATE {
 			j++
 		}
 	}
-	return DECRYPTION_STATE{&out}
+	return out
 }
 func initializeState(theBytes []byte) STATE {
 	out := [4][4]byte{}

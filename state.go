@@ -2,17 +2,17 @@ package main
 
 import "fmt"
 
-func (state *STATE) add_round_key(key [4][4]byte) {
+func (state STATE) add_round_key(key [4][4]byte) STATE {
 	out := STATE{}
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
 			out[row][col] = state[row][col] ^ key[row][col]
 		}
 	}
-	*state = out
+	return out
 }
 
-func (s *STATE) inv_mix_columns() {
+func (s STATE) inv_mix_columns() STATE{
 	// The first index is the row
 	ss := STATE{}
 	for c := 0; c < 4; c++ {
@@ -37,11 +37,10 @@ func (s *STATE) inv_mix_columns() {
 				GMul(0x09, s[2][c]) ^
 				GMul(0x0e, s[3][c])
 	}
-	*s = ss
-	return
+	return ss
 }
 
-func (input *STATE) inv_shift_rows() {
+func (input STATE) inv_shift_rows() STATE {
 	output := STATE{}
 	output[0] = input[0]
 
@@ -78,10 +77,10 @@ func (input *STATE) inv_shift_rows() {
 	}
 	output[3] = out_row3
 
-	*input = output
+	return output
 }
 
-func (s *STATE) MixColumns() {
+func (s STATE) MixColumns() STATE {
 	ss := [4][4]byte{}
 	for c := 0; c < 4; c++ {
 		ss[0][c] = (GMul(0x02, s[0][c]) ^ GMul(0x03, s[1][c]) ^ s[2][c] ^ s[3][c])
@@ -90,10 +89,10 @@ func (s *STATE) MixColumns() {
 		ss[3][c] = (GMul(0x03, s[0][c]) ^ s[1][c] ^ s[2][c] ^ GMul(0x02, s[3][c]))
 	}
 
-	*s = ss
+	return ss
 }
 
-func (input *STATE) shift_rows() {
+func (input STATE) shift_rows() STATE {
 	output := STATE{}
 	output[0] = input[0]
 
@@ -121,7 +120,7 @@ func (input *STATE) shift_rows() {
 	out_row3[3] = in_row3[2]
 	output[3] = out_row3
 
-	*input = output
+	return output
 }
 func (s STATE) show_state(title string) {
 	fmt.Println(title)
@@ -144,22 +143,23 @@ func sub_bytes(bytes []byte) []byte {
 	return retval
 }
 
-func (dec_state *DECRYPTION_STATE) lookup() {
+func (dec_state STATE) inv_lookup() STATE {
 	box := get_inv_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(dec_state.data[row][col])
+			b := &(dec_state[row][col])
 			i := int((*b & 0xf0) >> 4)
 			j := int(*b & 0xf)
 			*b = box[i][j]
 		}
 	}
+	return dec_state
 }
-func (enc_state *ENCRYPTION_STATE) lookup() {
+func (enc_state *STATE) lookup() {
 	box := get_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(enc_state.data[row][col])
+			b := &(enc_state[row][col])
 			j := int(*b & 0xf)
 			i := int((*b & 0xf0) >> 4)
 			*b = box[i][j]
