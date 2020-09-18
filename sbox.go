@@ -40,24 +40,20 @@ func decrypt(ciphertext STATE, expanded_key [44]uint32) STATE {
 	key_matrix := expand_key(expanded_key[40-round*4:44-round*4])
 	cipher_matrix.add_round_key(key_matrix)
 	state := cipher_matrix
-	for round:=1; round<=9; round++ {
 
+	for round:=1; round<=9; round++ {
 		state.inv_shift_rows()
 		state.inv_sub_bytes_state()
-		
 		key_matrix := expand_key(expanded_key[40-4*round:44-4*round])
 		state.add_round_key(key_matrix)
-
 		state.inv_mix_columns()
 	}
 
 	round = 10
 	state.inv_shift_rows()
 	state.inv_sub_bytes_state()
-
 	key_matrix = expand_key(expanded_key[40-4*round:44-4*round])
 	state.add_round_key(key_matrix)
-
 return state
 }
 func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
@@ -65,6 +61,7 @@ func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
 	state := initializeState(plaintext)
 	state.add_round_key(key_matrix)
 	box := sbox()
+	
 	for round:=1; round<=9; round++ {
 		for row:=0; row <4; row++ {
 			for col:=0; col<4; col++ {
@@ -79,6 +76,7 @@ func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
 		key_matrix := expand_key(expanded_key[4*round:4*round+4])
 		state.add_round_key(key_matrix)
 	}
+
 	round:=10
 	for row:=0; row <4; row++ {
 		for col:=0; col<4; col++ {
@@ -89,15 +87,29 @@ func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
 		}
 	}
 	state.shift_rows()
-
 	key_matrix = expand_key(expanded_key[4*round:4*round+4])
 	state.add_round_key(key_matrix)
 return state
 }
+
+//Stallings book on cryptography and network security
 func g_aes(word uint32, j int) uint32 {
+	var round_constant = map[int]uint32 {
+		0:0x00000,
+		1:0x1000000,
+		2:0x2000000,
+		3:0x4000000,
+		4:0x8000000,
+		5:0x10000000,
+		6:0x20000000,
+		7:0x40000000,
+		8:0x80000000,
+		9:0x1b000000,
+		10:0x36000000,
+	}
 	word2 := rotWord(word)
 	word2 = subWord(word2)
-	rc := round_const(j)
+	rc := round_constant[j]
 	return(word2^rc)
 }
 
@@ -241,8 +253,8 @@ func key_expand(key [16]uint8 ) [44]uint32 {
 	return retval
 }
 
+//Multiplication in a Galois field or order 256
 func GMul(a uint8, b uint8) uint8 {
-	 // Galois Field (256) Multiplication of two Bytes
 	p:=uint8(0)
     for counter := 0; counter < 8; counter++ {
         if ((b & 1) != 0) {
@@ -280,15 +292,6 @@ func (s *STATE) MixColumns() {
     }
 
     *s = ss
-}
-func round_const(j int) uint32 {
-	if j<9 {
-		return 1<<(23+j)
-	} else if j==9 {
-		return 0x1b000000 
-	} else {
-		return 0x36000000
-	}
 }
 func rotWord(word uint32) uint32 {
 	ba := wordToBytes(word)

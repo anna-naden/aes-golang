@@ -12,6 +12,7 @@ import (
 type STATE [4][4]uint8
 
 func main() {
+
 	const key = "YELLOW SUBMARINE"
 	keys1 := []byte(key)
 	keys := [16]uint8{}
