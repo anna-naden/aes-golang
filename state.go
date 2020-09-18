@@ -144,31 +144,28 @@ func sub_bytes(bytes []uint8) []uint8 {
 	return retval
 }
 
-func (state *STATE) substitute_inv_sbox() {
-	retval := STATE{}
+func (dec_state *DECRYPTION_STATE) lookup() {
 	box := get_inv_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(state[row][col])
+			b := &(dec_state.state[row][col])
 			i := int((*b & 0xf0) >> 4)
 			j := int(*b & 0xf)
 			*b = box[i][j]
-			retval[row][col] = *b
 		}
 	}
-	*state = retval
 }
-
-func (state *STATE) substitute_sbox() {
+func (enc_state *ENCRYPTION_STATE) lookup() {
 	box := get_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(state[row][col])
+			b := &(enc_state.state[row][col])
 			j := int(*b & 0xf)
 			i := int((*b & 0xf0) >> 4)
 			*b = box[i][j]
 		}
 	}
+
 }
 
 

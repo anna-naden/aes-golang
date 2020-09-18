@@ -11,15 +11,29 @@ import (
 
 type STATE [4][4]uint8
 
-type SBOX_LOOKER_UPPER interface{
+type SBOX_LOOKER_UPPER interface {
 	lookup() STATE
 }
 
-type PLAIN_TEXT_STATE STATE
+type ENCRYPTION_STATE struct {
+	state *STATE
+}
 
-type CIPHER_TEXT_STATE STATE
+type DECRYPTION_STATE struct {
+	state *STATE
+}
 
 func main() {
+
+	type x struct {
+		y int
+	}
+
+	a:=3
+
+	z:=x{a}
+	z.y=7
+	fmt.Println(a)
 
 	const key = "YELLOW SUBMARINE"
 	keys1 := []byte(key)
@@ -37,37 +51,32 @@ func main() {
 		panic(err)
 	}
 	block := [16]uint8{} //Blocks of ciphertext
-	fmt.Println(len(cipher_text_bytes))
 	f, err := os.Create("plaintext.txt")
 	w := bufio.NewWriter(f)
-	n := 0
-	for run := 0; run < 1; run++ {
-		for j := 0; j+15 < len(cipher_text_bytes); j += 16 {
-			for i := 0; i < 16; i++ {
-				block[i] = uint8(cipher_text_bytes[i+j])
-			}
-			state := decrypt(initializeState(block), get_key_schedule(key_bytes))
-			plain_text_bytes := unpackState(state)
-			n += len(plain_text_bytes)
-			w.WriteString(string(plain_text_bytes[:]))
-			fmt.Println(string(plain_text_bytes[:]))
+	for j := 0; j+15 < len(cipher_text_bytes); j += 16 {
+		for i := 0; i < 16; i++ {
+			block[i] = uint8(cipher_text_bytes[i+j])
 		}
+		state := decrypt(initializeState(block), get_key_schedule(key_bytes))
+		plain_text_bytes := unpackState(state)
+		fmt.Println(string(plain_text_bytes[:]))
+		w.WriteString(string(plain_text_bytes[:]))
 	}
 	w.Flush()
-	fmt.Println(n)
 }
 
-func decrypt(cipher_matrix STATE, key_schedule [44]uint32) STATE {
+func decrypt(state STATE, key_schedule [44]uint32) STATE {
+
+	dec_state := DECRYPTION_STATE{&state}
 
 	//Round 0
 	round := 0
 	round_key := make_key_matrix(key_schedule[40-round*4 : 44-round*4])
-	cipher_matrix.add_round_key(round_key)
-	state := cipher_matrix
+	state.add_round_key(round_key)
 
 	for round := 1; round <= 9; round++ {
 		state.inv_shift_rows()
-		state.substitute_inv_sbox()
+		dec_state.lookup()
 		key_matrix := make_key_matrix(key_schedule[40-4*round : 44-4*round])
 		state.add_round_key(key_matrix)
 		state.inv_mix_columns()
@@ -75,7 +84,7 @@ func decrypt(cipher_matrix STATE, key_schedule [44]uint32) STATE {
 
 	round = 10
 	state.inv_shift_rows()
-	state.substitute_inv_sbox()
+	dec_state.lookup()
 	round_key = make_key_matrix(key_schedule[40-4*round : 44-4*round])
 	state.add_round_key(round_key)
 	return state
@@ -84,10 +93,12 @@ func encrypt(plaintext [16]uint8, key_schedule [44]uint32) STATE {
 
 	round_key := make_key_matrix(key_schedule[0:4])
 	state := initializeState(plaintext)
+	enc_state := ENCRYPTION_STATE{&state}
 	state.add_round_key(round_key)
 
 	for round := 1; round <= 9; round++ {
-		state.substitute_sbox()
+		// state.substitute_sbox()
+		enc_state.lookup()
 		state.shift_rows()
 		state.MixColumns()
 		key_matrix := make_key_matrix(key_schedule[4*round : 4*round+4])
@@ -95,9 +106,15 @@ func encrypt(plaintext [16]uint8, key_schedule [44]uint32) STATE {
 	}
 
 	round := 10
-	state.substitute_sbox()
+	enc_state.lookup()
 	state.shift_rows()
 	round_key = make_key_matrix(key_schedule[4*round : 4*round+4])
 	state.add_round_key(round_key)
 	return state
+}
+func show_block(title string, data [16]uint8 ) {
+	fmt.Println(title)
+	fmt.Println("")
+	fmt.Printf("%x",data)
+	fmt.Println("")
 }
