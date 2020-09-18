@@ -3,8 +3,8 @@ package main
 import "encoding/binary"
 import "fmt"
 
-func add_round_key(key [4][4]uint8, state [4][4]uint8) [4][4]uint8 {
-	out := [4][4]uint8{}
+func ( state STATE) add_round_key(key [4][4]uint8) STATE {
+	out := STATE{}
 	for row:=0; row<4;row++ {
 		for col:=0; col<4; col++ {
 			out[row][col] = state[row][col] ^ key[row][col]
@@ -12,7 +12,7 @@ func add_round_key(key [4][4]uint8, state [4][4]uint8) [4][4]uint8 {
 	}
 	return out
 }
-func bytesToMatrix(theBytes [16]uint8) [4][4]uint8 {
+func initializeState(theBytes [16]uint8) STATE {
 	out := [4][4]uint8{}
 	j:=0
 	for row := 0; row<4; row++ {
@@ -31,7 +31,7 @@ func bytesToWord(ba [4]uint8) uint32 {
 	value |= uint32(ba[3])
 	return value
 }
-func decrypt(ciphertext [4][4]uint8, expanded_key [44]uint32) [4][4]uint8 {
+func decrypt(ciphertext STATE, expanded_key [44]uint32) STATE {
 
 	cipher_matrix := ciphertext
 
@@ -39,39 +39,34 @@ func decrypt(ciphertext [4][4]uint8, expanded_key [44]uint32) [4][4]uint8 {
 	round := 0
 	key_words := get_key_slice(expanded_key,40-round*4)
 	key_matrix := wordsToMatrix(key_words)
-	state := add_round_key(key_matrix, cipher_matrix)
+	state := cipher_matrix.add_round_key(key_matrix)
 	for round:=1; round<=9; round++ {
 
-		state = inv_shift_rows(state)
-		// if round == 3 {
-		// 	show_state("dec rnd 3 before sub by", state)
-		// }
-		state = inv_sub_bytes_state(state)
+		state = state.inv_shift_rows()
+		state = state.inv_sub_bytes_state()
 		
 		key_words := get_key_slice(expanded_key,40-4*round)
 		key_matrix := wordsToMatrix(key_words)
-		state = add_round_key(key_matrix, state)
+		state = state.add_round_key(key_matrix)
 
-		state = inv_mix_columns(state)
+		state = state.inv_mix_columns()
 	}
 
 	round = 10
-	state = inv_shift_rows(state)
-	state = inv_sub_bytes_state(state)
+	state = state.inv_shift_rows()
+	state = state.inv_sub_bytes_state()
 
 	key_words = get_key_slice(expanded_key,40-round*4)
 	key_matrix = wordsToMatrix(key_words)
-	state = add_round_key(key_matrix, state)
-	// show_state("dec rnd 10 after add rnd key", state)
+	state = state.add_round_key(key_matrix)
 
 return state
 }
-func encrypt(plaintext [16]uint8, expanded_key [44]uint32) [4][4]uint8 {
+func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
 	key_words := get_key_slice(expanded_key,0)
 	key_matrix := wordsToMatrix(key_words)
-	plain_matrix := bytesToMatrix(plaintext)
-	// show_state("encrypt rnd 0 before add key", plain_matrix)
-	state := add_round_key(key_matrix,plain_matrix)
+	plain_matrix := initializeState(plaintext)
+	state := plain_matrix.add_round_key(key_matrix)
 	box := sbox()
 	for round:=1; round<=9; round++ {
 		for row:=0; row <4; row++ {
@@ -82,11 +77,11 @@ func encrypt(plaintext [16]uint8, expanded_key [44]uint32) [4][4]uint8 {
 				state[row][col] = box[i][j]
 			}
 		}
-		state = shift_rows(state)
-		state = MixColumns(state)
+		state = state.shift_rows()
+		state = state.MixColumns()
 		key_words := get_key_slice(expanded_key,4*round)
 		key_matrix := wordsToMatrix(key_words)
-		state = add_round_key(key_matrix, state)
+		state = state.add_round_key(key_matrix)
 	}
 	round:=10
 	for row:=0; row <4; row++ {
@@ -97,21 +92,17 @@ func encrypt(plaintext [16]uint8, expanded_key [44]uint32) [4][4]uint8 {
 			state[row][col] = box[i][j]
 		}
 	}
-	state = shift_rows(state)
+	state = state.shift_rows()
 
 	key_words = get_key_slice(expanded_key,4*round)
 	key_matrix = wordsToMatrix(key_words)
-	state = add_round_key(key_matrix, state)
-	// show_state("after adding round key", state)
+	state = state.add_round_key(key_matrix)
 return state
 }
 func g_aes(word uint32, j int) uint32 {
 	word2 := rotWord(word)
 	word2 = subWord(word2)
 	rc := round_const(j)
-	// fmt.Printf("\ng_aes j %d rc %x",j,rc)
-	// fmt.Printf("g_aes word2 %x",word2)
-	// fmt.Printf("g_aes_xor %x", word2^rc)
 	return(word2^rc)
 }
 func get_key_slice(key_words [44]uint32, i int) [4]uint32 {
@@ -121,9 +112,9 @@ func get_key_slice(key_words [44]uint32, i int) [4]uint32 {
 	}
 	return out
 }
-func inv_mix_columns(s [4][4]uint8) [4][4]uint8 { 
+func (s STATE) inv_mix_columns() STATE { 
 	// The first index is the row
-    ss:=[4][4]uint8{}
+    ss:=STATE{}
     for  c := 0; c < 4; c++ {
 		ss[0][c] = 
 			GMul(0x0e, s[0][c])^ 
@@ -160,8 +151,8 @@ func inv_sub_bytes(bytes []uint8) []uint8 {
 	return retval
 
 }
-func inv_sub_bytes_state(state [4][4]uint8) [4][4]uint8 {
-	retval := [4][4]uint8{}
+func (state STATE) inv_sub_bytes_state() STATE {
+	retval := STATE{}
 	box := inv_sbox()
 	for row :=0; row<4; row++ {
 		for col :=0; col<4; col++ {
@@ -175,8 +166,8 @@ func inv_sub_bytes_state(state [4][4]uint8) [4][4]uint8 {
 	return retval
 }
 
-func inv_shift_rows(input [4][4]uint8) [4][4]uint8 {
-	output := [4][4]uint8 {}
+func (input STATE) inv_shift_rows() STATE {
+	output := STATE {}
 	output[0]=input[0]
 	
 	in_row1 := input[1]
@@ -245,7 +236,6 @@ func key_expand(key [16]uint8 ) [44]uint32 {
 	words := [44]uint32{}
 	for i:=0; i<4;i++ {
 		words[i] = binary.BigEndian.Uint32(key[4*i:4*i+4])
-		// fmt.Printf("% x", words[i])
 	}
 	for i:=1;i<11;i++ {
 		g := g_aes(words[4*i-1],i)
@@ -254,7 +244,6 @@ func key_expand(key [16]uint8 ) [44]uint32 {
 		words[4*i+2] = words[4*i-2]^words[4*i+1]
 		words[4*i+3] = words[4*i-1]^words[4*i+2]
 	}
-	// fmt.Printf("% x",words)
 	retval := [44]uint32{}
 	for i:= 0;i<44;i++ {
 		retval[i]=words[i]
@@ -280,7 +269,7 @@ func GMul(a uint8, b uint8) uint8 {
 
     return p;
 }
-func matrixToBytes(matrix [4][4]uint8) [16]uint8 {
+func unpackState(matrix [4][4]uint8) [16]uint8 {
 	out := [16]uint8{}
 	j:=0
 	for row:=0;row<4;row++ {
@@ -291,9 +280,7 @@ func matrixToBytes(matrix [4][4]uint8) [16]uint8 {
 	}
 	return out
 }
-func MixColumns(s [4][4]uint8) [4][4]uint8 { 
-	// 's' is the main State matrix, 'ss' is a temp matrix of the same dimensions as 's'.
-	// The first index is the row
+func (s STATE) MixColumns() STATE { 
     ss:=[4][4]uint8{}
     for  c := 0; c < 4; c++ {
         ss[0][c] = (GMul(0x02, s[0] [c]) ^ GMul(0x03, s[1] [c]) ^ s[2] [c] ^ s[3][c])
@@ -350,8 +337,8 @@ func sbox() [16][16]uint8 {
 	}
 	return box2
 }
-func shift_rows(input [4][4]uint8) [4][4]uint8 {
-	output := [4][4]uint8 {}
+func (input STATE) shift_rows() STATE {
+	output := STATE {}
 	output[0]=input[0]
 	
 	in_row1 := input[1]
@@ -380,7 +367,7 @@ func shift_rows(input [4][4]uint8) [4][4]uint8 {
 
 	return output
 }
-func show_state(title string,s [4][4]uint8) {
+func (s STATE) show_state(title string) {
 	fmt.Println(title)
 	for row:=0;row<4;row++ {
 		for col:=0;col<4;col++ {
@@ -439,25 +426,6 @@ func wordToBytes(word uint32) [4]uint8 {
 		uint8((word&0xff00)>>8), 
 		uint8(word&0xff)}
 		return myBytes
-}
-//UNUSED ATTEMPT TO COMPUTE MULTIPLICATIVE INVERSE
-func mult_inv(inByte uint8) uint8 {
-	inbits := [8]uint8{}
-	for i := 0; i < 8; i++ {
-		bi := (inByte & (1 << i)) >> i
-		inbits[i]=bi
-	}
-	const d=0x05
-	outByte:=uint8(0)
-	showBits(inByte)
-	for i:=0;i<8;i++ {
-		outbit := inbits[(i+2)%8]^inbits[(i+5)%8]^inbits[(i+7)%8]^d
-		if outbit == 1 {
-			outByte += 1<<i
-		}
-	}
-	showBits(outByte)
-	return outByte
 }
 
 
