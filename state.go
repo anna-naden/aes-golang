@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func (state *STATE) add_round_key(key [4][4]uint8) {
+func (state *STATE) add_round_key(key [4][4]byte) {
 	out := STATE{}
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
@@ -46,7 +46,7 @@ func (input *STATE) inv_shift_rows() {
 	output[0] = input[0]
 
 	in_row1 := input[1]
-	out_row1 := [4]uint8{}
+	out_row1 := [4]byte{}
 	for i := 0; i < 4; i++ {
 		j := i - 1
 		if j < 0 {
@@ -57,7 +57,7 @@ func (input *STATE) inv_shift_rows() {
 	output[1] = out_row1
 
 	in_row2 := input[2]
-	out_row2 := [4]uint8{}
+	out_row2 := [4]byte{}
 	for i := 0; i < 4; i++ {
 		j := i - 2
 		if j < 0 {
@@ -68,7 +68,7 @@ func (input *STATE) inv_shift_rows() {
 	output[2] = out_row2
 
 	in_row3 := input[3]
-	out_row3 := [4]uint8{}
+	out_row3 := [4]byte{}
 	for i := 0; i < 4; i++ {
 		j := i - 3
 		if j < 0 {
@@ -82,7 +82,7 @@ func (input *STATE) inv_shift_rows() {
 }
 
 func (s *STATE) MixColumns() {
-	ss := [4][4]uint8{}
+	ss := [4][4]byte{}
 	for c := 0; c < 4; c++ {
 		ss[0][c] = (GMul(0x02, s[0][c]) ^ GMul(0x03, s[1][c]) ^ s[2][c] ^ s[3][c])
 		ss[1][c] = (s[0][c] ^ GMul(0x02, s[1][c]) ^ GMul(0x03, s[2][c]) ^ s[3][c])
@@ -98,7 +98,7 @@ func (input *STATE) shift_rows() {
 	output[0] = input[0]
 
 	in_row1 := input[1]
-	out_row1 := [4]uint8{}
+	out_row1 := [4]byte{}
 	out_row1[0] = in_row1[1]
 	out_row1[1] = in_row1[2]
 	out_row1[2] = in_row1[3]
@@ -106,7 +106,7 @@ func (input *STATE) shift_rows() {
 	output[1] = out_row1
 
 	in_row2 := input[2]
-	out_row2 := [4]uint8{}
+	out_row2 := [4]byte{}
 	out_row2[0] = in_row2[2]
 	out_row2[1] = in_row2[3]
 	out_row2[2] = in_row2[0]
@@ -114,7 +114,7 @@ func (input *STATE) shift_rows() {
 	output[2] = out_row2
 
 	in_row3 := input[3]
-	out_row3 := [4]uint8{}
+	out_row3 := [4]byte{}
 	out_row3[0] = in_row3[3]
 	out_row3[1] = in_row3[0]
 	out_row3[2] = in_row3[1]
@@ -133,8 +133,8 @@ func (s STATE) show_state(title string) {
 	}
 	fmt.Println("")
 }
-func sub_bytes(bytes []uint8) []uint8 {
-	retval := []uint8{}
+func sub_bytes(bytes []byte) []byte {
+	retval := []byte{}
 	for _, b := range bytes {
 		col := b & 0xf
 		row := (b & 0xf0) >> 4
@@ -148,7 +148,7 @@ func (dec_state *DECRYPTION_STATE) lookup() {
 	box := get_inv_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(dec_state.state[row][col])
+			b := &(dec_state.data[row][col])
 			i := int((*b & 0xf0) >> 4)
 			j := int(*b & 0xf)
 			*b = box[i][j]
@@ -159,7 +159,7 @@ func (enc_state *ENCRYPTION_STATE) lookup() {
 	box := get_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
-			b := &(enc_state.state[row][col])
+			b := &(enc_state.data[row][col])
 			j := int(*b & 0xf)
 			i := int((*b & 0xf0) >> 4)
 			*b = box[i][j]
@@ -167,5 +167,3 @@ func (enc_state *ENCRYPTION_STATE) lookup() {
 	}
 
 }
-
-

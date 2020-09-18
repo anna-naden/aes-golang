@@ -2,8 +2,19 @@ package main
 
 import "encoding/binary"
 
-func initializeState(theBytes [16]uint8) STATE {
-	out := [4][4]uint8{}
+func make_decryption_state(theBytes []byte) DECRYPTION_STATE {
+	out := STATE{}
+	j := 0
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
+			out[col][row] = theBytes[j]
+			j++
+		}
+	}
+	return DECRYPTION_STATE{&out}
+}
+func initializeState(theBytes []byte) STATE {
+	out := [4][4]byte{}
 	j := 0
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
@@ -13,7 +24,7 @@ func initializeState(theBytes [16]uint8) STATE {
 	}
 	return out
 }
-func bytesToWord(ba [4]uint8) uint32 {
+func bytesToWord(ba [4]byte) uint32 {
 	var value uint32
 	value |= uint32(ba[0]) << 24
 	value |= uint32(ba[1]) << 16
@@ -21,13 +32,13 @@ func bytesToWord(ba [4]uint8) uint32 {
 	value |= uint32(ba[3])
 	return value
 }
-func make_key_matrix(words []uint32) [4][4]uint8 {
-	out := [4][4]uint8{}
+func make_key_matrix(words []uint32) [4][4]byte {
+	out := [4][4]byte{}
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
 			word := words[row]
 			ishift := 24 - col*8
-			theByte := uint8((word & (0xff << ishift)) >> ishift)
+			theByte := byte((word & (0xff << ishift)) >> ishift)
 			out[col][row] = theByte
 		}
 	}
@@ -55,8 +66,8 @@ func g_aes(word uint32, j int) uint32 {
 	return (word2 ^ rc)
 }
 
-func get_inv_sbox() [16][16]uint8 {
-	box := [256]uint8{
+func get_inv_sbox() [16][16]byte {
+	box := [256]byte{
 		0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
 		0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
 		0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -73,7 +84,7 @@ func get_inv_sbox() [16][16]uint8 {
 		0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
 		0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
 		0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d}
-	box2 := [16][16]uint8{}
+	box2 := [16][16]byte{}
 	for col := 0; col < 16; col++ {
 		for row := 0; row < 16; row++ {
 			box2[row][col] = box[row*16+col]
@@ -82,7 +93,7 @@ func get_inv_sbox() [16][16]uint8 {
 	return box2
 }
 
-func get_key_schedule(key [16]uint8) [44]uint32 {
+func get_key_schedule(key [16]byte) [44]uint32 {
 	words := [44]uint32{}
 	for i := 0; i < 4; i++ {
 		words[i] = binary.BigEndian.Uint32(key[4*i : 4*i+4])
@@ -102,8 +113,8 @@ func get_key_schedule(key [16]uint8) [44]uint32 {
 }
 
 //Multiplication in a Galois field or order 256
-func GMul(a uint8, b uint8) uint8 {
-	p := uint8(0)
+func GMul(a byte, b byte) byte {
+	p := byte(0)
 	for counter := 0; counter < 8; counter++ {
 		if (b & 1) != 0 {
 			p ^= a
@@ -119,8 +130,8 @@ func GMul(a uint8, b uint8) uint8 {
 
 	return p
 }
-func unpackState(matrix STATE) [16]uint8 {
-	out := [16]uint8{}
+func unpackState(matrix STATE) [16]byte {
+	out := [16]byte{}
 	j := 0
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
@@ -133,16 +144,16 @@ func unpackState(matrix STATE) [16]uint8 {
 func rotWord(word uint32) uint32 {
 	ba := wordToBytes(word)
 	b0 := ba[0]
-	var ba2 [4]uint8
-	ba2 = [4]uint8{}
+	var ba2 [4]byte
+	ba2 = [4]byte{}
 	for i := 0; i < 3; i++ {
 		ba2[i] = ba[i+1]
 	}
 	ba2[3] = b0
 	return (bytesToWord(ba2))
 }
-func get_sbox() [16][16]uint8 {
-	box := [256]uint8{
+func get_sbox() [16][16]byte {
+	box := [256]byte{
 		0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 		0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 		0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -159,7 +170,7 @@ func get_sbox() [16][16]uint8 {
 		0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
 		0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
 		0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16}
-	box2 := [16][16]uint8{}
+	box2 := [16][16]byte{}
 	for col := 0; col < 16; col++ {
 		for row := 0; row < 16; row++ {
 			box2[row][col] = box[row*16+col]
@@ -171,16 +182,16 @@ func get_sbox() [16][16]uint8 {
 func subWord(word uint32) uint32 {
 	myBytes := wordToBytes(word)
 	ba := sub_bytes(myBytes[:])
-	ba2 := [4]uint8{ba[0], ba[1], ba[2], ba[3]}
+	ba2 := [4]byte{ba[0], ba[1], ba[2], ba[3]}
 	return bytesToWord(ba2)
 
 }
 
-func wordToBytes(word uint32) [4]uint8 {
-	myBytes := [4]uint8{
-		uint8((word & 0xff000000) >> 24),
-		uint8((word & 0xff0000) >> 16),
-		uint8((word & 0xff00) >> 8),
-		uint8(word & 0xff)}
+func wordToBytes(word uint32) [4]byte {
+	myBytes := [4]byte{
+		byte((word & 0xff000000) >> 24),
+		byte((word & 0xff0000) >> 16),
+		byte((word & 0xff00) >> 8),
+		byte(word & 0xff)}
 	return myBytes
 }
