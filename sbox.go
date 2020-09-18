@@ -1,22 +1,12 @@
 package main
 
 import "encoding/binary"
-import "fmt"
 
-func ( state *STATE) add_round_key(key [4][4]uint8) {
-	out := STATE{}
-	for row:=0; row<4;row++ {
-		for col:=0; col<4; col++ {
-			out[row][col] = state[row][col] ^ key[row][col]
-		}
-	}
-	*state = out
-}
 func initializeState(theBytes [16]uint8) STATE {
 	out := [4][4]uint8{}
-	j:=0
-	for row := 0; row<4; row++ {
-		for col :=0; col<4; col++ {
+	j := 0
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
 			out[col][row] = theBytes[j]
 			j++
 		}
@@ -25,189 +15,47 @@ func initializeState(theBytes [16]uint8) STATE {
 }
 func bytesToWord(ba [4]uint8) uint32 {
 	var value uint32
-	value |= uint32(ba[0])<<24
+	value |= uint32(ba[0]) << 24
 	value |= uint32(ba[1]) << 16
 	value |= uint32(ba[2]) << 8
 	value |= uint32(ba[3])
 	return value
 }
-func decrypt(ciphertext STATE, expanded_key [44]uint32) STATE {
-
-	cipher_matrix := ciphertext
-
-	//Round 0
-	round := 0
-	key_matrix := expand_key(expanded_key[40-round*4:44-round*4])
-	cipher_matrix.add_round_key(key_matrix)
-	state := cipher_matrix
-
-	for round:=1; round<=9; round++ {
-		state.inv_shift_rows()
-		state.inv_sub_bytes_state()
-		key_matrix := expand_key(expanded_key[40-4*round:44-4*round])
-		state.add_round_key(key_matrix)
-		state.inv_mix_columns()
-	}
-
-	round = 10
-	state.inv_shift_rows()
-	state.inv_sub_bytes_state()
-	key_matrix = expand_key(expanded_key[40-4*round:44-4*round])
-	state.add_round_key(key_matrix)
-return state
-}
-func encrypt(plaintext [16]uint8, expanded_key [44]uint32) STATE {
-	key_matrix := expand_key(expanded_key[0:4])
-	state := initializeState(plaintext)
-	state.add_round_key(key_matrix)
-	box := sbox()
-	
-	for round:=1; round<=9; round++ {
-		for row:=0; row <4; row++ {
-			for col:=0; col<4; col++ {
-				b := state[row][col]
-				j := int(b & 0xf)
-				i := int((b & 0xf0) >> 4)
-				state[row][col] = box[i][j]
-			}
-		}
-		state.shift_rows()
-		state.MixColumns()
-		key_matrix := expand_key(expanded_key[4*round:4*round+4])
-		state.add_round_key(key_matrix)
-	}
-
-	round:=10
-	for row:=0; row <4; row++ {
-		for col:=0; col<4; col++ {
-			b := state[row][col]
-			j := int(b & 0xf)
-			i := int((b & 0xf0) >> 4)
-			state[row][col] = box[i][j]
+func make_key_matrix(words []uint32) [4][4]uint8 {
+	out := [4][4]uint8{}
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
+			word := words[row]
+			ishift := 24 - col*8
+			theByte := uint8((word & (0xff << ishift)) >> ishift)
+			out[col][row] = theByte
 		}
 	}
-	state.shift_rows()
-	key_matrix = expand_key(expanded_key[4*round:4*round+4])
-	state.add_round_key(key_matrix)
-return state
+	return out
 }
 
 //Stallings book on cryptography and network security
 func g_aes(word uint32, j int) uint32 {
-	var round_constant = map[int]uint32 {
-		0:0x00000,
-		1:0x1000000,
-		2:0x2000000,
-		3:0x4000000,
-		4:0x8000000,
-		5:0x10000000,
-		6:0x20000000,
-		7:0x40000000,
-		8:0x80000000,
-		9:0x1b000000,
-		10:0x36000000,
+	var round_constant = map[int]uint32{
+		0:  0x00000,
+		1:  0x1000000,
+		2:  0x2000000,
+		3:  0x4000000,
+		4:  0x8000000,
+		5:  0x10000000,
+		6:  0x20000000,
+		7:  0x40000000,
+		8:  0x80000000,
+		9:  0x1b000000,
+		10: 0x36000000,
 	}
 	word2 := rotWord(word)
 	word2 = subWord(word2)
 	rc := round_constant[j]
-	return(word2^rc)
+	return (word2 ^ rc)
 }
 
-func (s *STATE) inv_mix_columns() { 
-	// The first index is the row
-    ss:=STATE{}
-    for  c := 0; c < 4; c++ {
-		ss[0][c] = 
-			GMul(0x0e, s[0][c])^ 
-			GMul(0x0b, s[1][c])^
-			GMul(0x0d, s[2][c])^
-			GMul(0x09, s[3][c])
-		ss[1][c] = 
-			GMul(0x09, s[0][c])^
-			GMul(0x0e, s[1][c])^
-			GMul(0x0b, s[2][c])^
-			GMul(0x0d, s[3][c])
-		ss[2][c] =
-			GMul(0x0d, s[0][c])^
-			GMul(0x09, s[1][c])^
-			GMul(0x0e, s[2][c])^
-			GMul(0x0b, s[3][c])
-		ss[3][c] =
-			GMul(0x0b, s[0][c])^
-			GMul(0x0d, s[1][c])^
-			GMul(0x09, s[2][c])^
-			GMul(0x0e, s[3][c])
-    }
-	*s=ss
-	return
-}
-func inv_sub_bytes(bytes []uint8) []uint8 {
-	retval := []uint8{}
-	box := inv_sbox()
-	for _, b := range bytes {
-		col := b & 0xf
-		row := (b & 0xf0) >> 4
-		lookup :=    box[row][col]
-		retval = append(retval, lookup)
-	}
-	return retval
-
-}
-func (state *STATE) inv_sub_bytes_state() {
-	retval := STATE{}
-	box := inv_sbox()
-	for row :=0; row<4; row++ {
-		for col :=0; col<4; col++ {
-			b := state[row][col]
-			i := (b & 0xf0) >> 4
-			j := b & 0xf
-			lookup :=box[i][j]
-			retval[row][col] = lookup
-		}
-	}
-	*state = retval
-}
-
-func (input *STATE) inv_shift_rows() {
-	output := STATE {}
-	output[0]=input[0]
-	
-	in_row1 := input[1]
-	out_row1 := [4]uint8{}
-	for i :=0; i<4; i++ {
-		j:=i-1
-		if j<0 {
-			j +=4
-		}
-		out_row1[i] = in_row1[j]
-	}
-	output[1] = out_row1
-
-	in_row2 := input[2]
-	out_row2 := [4]uint8{}
-	for i:=0; i<4; i++ {
-		j:=i-2
-		if j<0 {
-			j +=4
-		}
-		out_row2[i]=in_row2[j]
-	}
-	output[2]=out_row2
-	
-	in_row3 := input[3]
-	out_row3 := [4]uint8{}
-	for i:=0; i<4; i++ {
-		j:=i-3
-		if j<0 {
-			j +=4
-		}
-		out_row3[i] = in_row3[j]
-	}
-	output[3]=out_row3
-
-	*input = output
-}
-func inv_sbox() [16][16]uint8 {
+func get_inv_sbox() [16][16]uint8 {
 	box := [256]uint8{
 		0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
 		0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -234,77 +82,66 @@ func inv_sbox() [16][16]uint8 {
 	return box2
 }
 
-func key_expand(key [16]uint8 ) [44]uint32 {
+func get_key_schedule(key [16]uint8) [44]uint32 {
 	words := [44]uint32{}
-	for i:=0; i<4;i++ {
-		words[i] = binary.BigEndian.Uint32(key[4*i:4*i+4])
+	for i := 0; i < 4; i++ {
+		words[i] = binary.BigEndian.Uint32(key[4*i : 4*i+4])
 	}
-	for i:=1;i<11;i++ {
-		g := g_aes(words[4*i-1],i)
-		words[4*i] = words[4*i-4]^g
-		words[4*i+1] = words[4*i-3]^words[4*i]
-		words[4*i+2] = words[4*i-2]^words[4*i+1]
-		words[4*i+3] = words[4*i-1]^words[4*i+2]
+	for i := 1; i < 11; i++ {
+		g := g_aes(words[4*i-1], i)
+		words[4*i] = words[4*i-4] ^ g
+		words[4*i+1] = words[4*i-3] ^ words[4*i]
+		words[4*i+2] = words[4*i-2] ^ words[4*i+1]
+		words[4*i+3] = words[4*i-1] ^ words[4*i+2]
 	}
 	retval := [44]uint32{}
-	for i:= 0;i<44;i++ {
-		retval[i]=words[i]
+	for i := 0; i < 44; i++ {
+		retval[i] = words[i]
 	}
 	return retval
 }
 
 //Multiplication in a Galois field or order 256
 func GMul(a uint8, b uint8) uint8 {
-	p:=uint8(0)
-    for counter := 0; counter < 8; counter++ {
-        if ((b & 1) != 0) {
-            p ^= a
-        }
+	p := uint8(0)
+	for counter := 0; counter < 8; counter++ {
+		if (b & 1) != 0 {
+			p ^= a
+		}
 
-        hi_bit_set := (a & 0x80) != 0
-        a <<= 1
-        if (hi_bit_set) {
-            a ^= 0x1B; // x^8 + x^4 + x^3 + x + 1 */
-        }
-        b >>= 1;
-    }
+		hi_bit_set := (a & 0x80) != 0
+		a <<= 1
+		if hi_bit_set {
+			a ^= 0x1B // x^8 + x^4 + x^3 + x + 1 */
+		}
+		b >>= 1
+	}
 
-    return p;
+	return p
 }
-func unpackState(matrix [4][4]uint8) [16]uint8 {
+func unpackState(matrix STATE) [16]uint8 {
 	out := [16]uint8{}
-	j:=0
-	for row:=0;row<4;row++ {
-		for col:=0; col<4; col++ {
+	j := 0
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
 			out[j] = matrix[col][row]
 			j++
 		}
 	}
 	return out
 }
-func (s *STATE) MixColumns() { 
-    ss:=[4][4]uint8{}
-    for  c := 0; c < 4; c++ {
-        ss[0][c] = (GMul(0x02, s[0] [c]) ^ GMul(0x03, s[1] [c]) ^ s[2] [c] ^ s[3][c])
-        ss[1][c] = (s[0][c] ^ GMul(0x02, s[1][c]) ^ GMul(0x03, s[2][c]) ^ s[3][c]);
-        ss[2][c] = (s[0][c] ^ s[1][c] ^ GMul(0x02, s[2][c]) ^ GMul(0x03, s[3] [c]));
-        ss[3][c] = (GMul(0x03, s[0][c]) ^ s[1][c] ^ s[2][c] ^ GMul(0x02, s[3] [c]));
-    }
-
-    *s = ss
-}
 func rotWord(word uint32) uint32 {
 	ba := wordToBytes(word)
-	b0:=ba[0]
+	b0 := ba[0]
 	var ba2 [4]uint8
 	ba2 = [4]uint8{}
-	for i:=0;i<3;i++ {
-		ba2[i]=ba[i+1]
+	for i := 0; i < 3; i++ {
+		ba2[i] = ba[i+1]
 	}
-	ba2[3]=b0
-	return(bytesToWord(ba2))
+	ba2[3] = b0
+	return (bytesToWord(ba2))
 }
-func sbox() [16][16]uint8 {
+func get_sbox() [16][16]uint8 {
 	box := [256]uint8{
 		0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 		0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -330,95 +167,20 @@ func sbox() [16][16]uint8 {
 	}
 	return box2
 }
-func (input *STATE) shift_rows() {
-	output := STATE {}
-	output[0]=input[0]
-	
-	in_row1 := input[1]
-	out_row1 := [4]uint8{}
-	out_row1[0] = in_row1[1]
-	out_row1[1] = in_row1[2]
-	out_row1[2] = in_row1[3]
-	out_row1[3] = in_row1[0]
-	output[1] = out_row1
-
-	in_row2 := input[2]
-	out_row2 := [4]uint8{}
-	out_row2[0] = in_row2[2]
-	out_row2[1] = in_row2[3]
-	out_row2[2] = in_row2[0]
-	out_row2[3] = in_row2[1]
-	output[2] = out_row2
-
-	in_row3 := input[3]
-	out_row3 := [4]uint8{}
-	out_row3[0]=in_row3[3]
-	out_row3[1]=in_row3[0]
-	out_row3[2]=in_row3[1]
-	out_row3[3]=in_row3[2]
-	output[3]=out_row3
-
-	*input = output
-}
-func (s STATE) show_state(title string) {
-	fmt.Println(title)
-	for row:=0;row<4;row++ {
-		for col:=0;col<4;col++ {
-			fmt.Printf("%x ",s[row][col])
-		}
-		fmt.Println("")
-	}
-	fmt.Println("")
-}	
-func sub_bytes(bytes []uint8) []uint8 {
-	retval := []uint8{}
-	for _, b := range bytes {
-		col := b & 0xf
-		row := (b & 0xf0) >> 4
-		box := sbox()
-		retval = append(retval, box[row][col])
-	}
-	return retval
-}
-
-func sub_bytes16(bytes [16]uint8) [16]uint8 {
-	retval := [16]uint8{}
-	box := sbox()
-	for i:=0; i<16; i++ {
-		b := bytes[i]
-		col := b & 0xf
-		row := (b & 0xf0) >> 4
-		retval[i] = box[row][col]
-	}
-	return retval
-}
 
 func subWord(word uint32) uint32 {
 	myBytes := wordToBytes(word)
 	ba := sub_bytes(myBytes[:])
-	ba2 := [4]uint8{ba[0],ba[1],ba[2],ba[3]}
+	ba2 := [4]uint8{ba[0], ba[1], ba[2], ba[3]}
 	return bytesToWord(ba2)
-	
+
 }
-func expand_key(words []uint32) [4][4]uint8 {
-	out:= [4][4]uint8{}
-	for row:=0;row<4;row++ {
-		for col:=0; col<4; col++ {
-			word := words[row]
-			ishift := 24-col*8
-			theByte := uint8((word&(0xff<<ishift))>>ishift)
-			out[col][row] = theByte
-		}
-	}
-	return out
-}
+
 func wordToBytes(word uint32) [4]uint8 {
-	myBytes := [4]uint8 {
-		uint8((word&0xff000000)>>24),
-		uint8((word&0xff0000)>>16), 
-		uint8((word&0xff00)>>8), 
-		uint8(word&0xff)}
-		return myBytes
+	myBytes := [4]uint8{
+		uint8((word & 0xff000000) >> 24),
+		uint8((word & 0xff0000) >> 16),
+		uint8((word & 0xff00) >> 8),
+		uint8(word & 0xff)}
+	return myBytes
 }
-
-
