@@ -174,31 +174,52 @@ func (s STATE) show_state(title string) {
 	}
 	fmt.Println("")
 }
+
+var s_box_fetched = false
+var s_box = [16][16]byte{}
+
 func sub_bytes(bytes []byte) []byte {
-	retval := []byte{}
-	for _, b := range bytes {
-		col := b & 0xf
-		row := (b & 0xf0) >> 4
-		// box := get_sbox()
-		retval = append(retval, s_box[row][col])
+	f:= func(bytes []byte) []byte {
+		if !s_box_fetched {
+			s_box = get_sbox()
+			s_box_fetched=true
+		}
+		retval := []byte{}
+		for _, b := range bytes {
+			col := b & 0xf
+			row := (b & 0xf0) >> 4
+			// box := get_sbox()
+			retval = append(retval, s_box[row][col])
+		}
+		return retval
 	}
-	return retval
+	return f(bytes)
 }
+
+var inv_sbox_fetched = false
+var inv_sbox = [16][16]byte {}
 
 func (dec_state STATE) inv_lookup() STATE {
 	cpu1 := C.getThreadCpuTimeNs()
-	// box := get_inv_sbox()
-	for row := 0; row < 4; row++ {
-		for col := 0; col < 4; col++ {
-			b := &(dec_state[row][col])
-			i := int((*b & 0xf0) >> 4)
-			j := int(*b & 0xf)
-			*b = box[i][j]
+	f:= func(state STATE) STATE {
+		if !inv_sbox_fetched {
+			inv_sbox = get_inv_sbox()
+			inv_sbox_fetched = true
 		}
+		// box := get_inv_sbox()
+		for row := 0; row < 4; row++ {
+			for col := 0; col < 4; col++ {
+				b := &(dec_state[row][col])
+				i := int((*b & 0xf0) >> 4)
+				j := int(*b & 0xf)
+				*b = inv_sbox[i][j]
+			}
+		}
+		cpu2 := C.getThreadCpuTimeNs()
+		sbox_cpu += int32(cpu2-cpu1)
+		return dec_state
 	}
-	cpu2 := C.getThreadCpuTimeNs()
-	sbox_cpu += int32(cpu2-cpu1)
-	return dec_state
+	return f(dec_state)
 }
 func (enc_state *STATE) lookup() STATE {
 	box := get_sbox()

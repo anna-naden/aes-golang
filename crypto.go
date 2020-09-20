@@ -34,8 +34,6 @@ type SBOX_LOOKER_UPPER interface {
 
 var g_cache = [256][256]byte{}
 var sbox_cpu = int32(0)
-var box = get_inv_sbox()
-var s_box = get_sbox()
 
 func main() {
 	for i:=0; i<256; i++ {
