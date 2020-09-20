@@ -1,5 +1,20 @@
 package main
 
+/*
+#include <pthread.h>
+#include <time.h>
+#include <stdio.h>
+
+static long long getThreadCpuTimeNs() {
+    struct timespec t;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t)) {
+        perror("clock_gettime");
+        return 0;
+    }
+    return t.tv_sec * 1000000000LL + t.tv_nsec;
+}
+*/
+import "C"
 import "fmt"
 
 func (state STATE) add_round_key(key [4][4]byte) STATE {
@@ -15,6 +30,33 @@ func (state STATE) add_round_key(key [4][4]byte) STATE {
 func (s STATE) inv_mix_columns() STATE{
 	// The first index is the row
 	ss := STATE{}
+	use_cache:=true
+	if use_cache {
+		for c := 0; c < 4; c++ {
+			ss[0][c] =
+				g_cache[0x0e][s[0][c]] ^
+					g_cache[0x0b] [s[1][c]] ^
+					g_cache[0x0d][s[2][c]] ^
+					g_cache[0x09][s[3][c]]
+			ss[1][c] =
+				g_cache[0x09][s[0][c]] ^
+					g_cache[0x0e][s[1][c]] ^
+					g_cache[0x0b][s[2][c]] ^
+					g_cache[0x0d][s[3][c]]
+			ss[2][c] =
+				g_cache[0x0d][s[0][c]] ^
+				g_cache[0x09][s[1][c]] ^
+					g_cache[0x0e][s[2][c]] ^
+					g_cache[0x0b][s[3][c]]
+			ss[3][c] =
+				g_cache[0x0b][s[0][c]] ^
+					g_cache[0x0d][s[1][c]] ^
+					g_cache[0x09][s[2][c]] ^
+					g_cache[0x0e][s[3][c]]
+		}
+		return ss
+	
+	}
 	for c := 0; c < 4; c++ {
 		ss[0][c] =
 			GMul(0x0e, s[0][c]) ^
@@ -137,14 +179,15 @@ func sub_bytes(bytes []byte) []byte {
 	for _, b := range bytes {
 		col := b & 0xf
 		row := (b & 0xf0) >> 4
-		box := get_sbox()
-		retval = append(retval, box[row][col])
+		// box := get_sbox()
+		retval = append(retval, s_box[row][col])
 	}
 	return retval
 }
 
 func (dec_state STATE) inv_lookup() STATE {
-	box := get_inv_sbox()
+	cpu1 := C.getThreadCpuTimeNs()
+	// box := get_inv_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
 			b := &(dec_state[row][col])
@@ -153,6 +196,8 @@ func (dec_state STATE) inv_lookup() STATE {
 			*b = box[i][j]
 		}
 	}
+	cpu2 := C.getThreadCpuTimeNs()
+	sbox_cpu += int32(cpu2-cpu1)
 	return dec_state
 }
 func (enc_state *STATE) lookup() STATE {

@@ -1,13 +1,29 @@
 package main
 
+/*
+#include <pthread.h>
+#include <time.h>
+#include <stdio.h>
+
+static long long getThreadCpuTimeNs() {
+    struct timespec t;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t)) {
+        perror("clock_gettime");
+        return 0;
+    }
+    return t.tv_sec * 1000000000LL + t.tv_nsec;
+}
+*/
+import "C"
+
 import (
-	// "encoding/hex"
 	"bufio"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 type STATE [4][4]byte
@@ -16,12 +32,25 @@ type SBOX_LOOKER_UPPER interface {
 	lookup() STATE
 }
 
+var g_cache = [256][256]byte{}
+var sbox_cpu = int32(0)
+var box = get_inv_sbox()
+var s_box = get_sbox()
+
 func main() {
+	for i:=0; i<256; i++ {
+		for j:=0; j<256; j++ {
+			g_cache[i][j]=GMul(byte(i),byte(j))
+		}
+	}
 	do_stallings := false
 	if do_stallings {
 		stallings()
 	}
-	crypto_challenge()
+	do_challenge := true
+	if do_challenge {
+		crypto_challenge()
+	}
 }
 func stallings() {
 	key, err := hex.DecodeString("0f1571c947d9e8590cb7add6af7f6798")
@@ -50,6 +79,8 @@ func crypto_challenge() {
 	}
 	w := bufio.NewWriter(f)
 	plain_text_bytes := [16]byte{}
+	start := time.Now()
+	cpu1 := C.getThreadCpuTimeNs()
 	for j := 0; j+15 < len(cipher_text_bytes); j += 16 {
 		for i := 0; i < 16; i++ {
 			block[i] = byte(cipher_text_bytes[i+j])
@@ -60,6 +91,13 @@ func crypto_challenge() {
 		w.WriteString(string(plain_text_bytes[:]))
 	}
 	w.Flush()
+	cpu2 := C.getThreadCpuTimeNs()
+	fmt.Printf("end-to-end cpu %d ns",(cpu2-cpu1))
+	fmt.Println("")
+	finish :=time.Since(start)
+	fmt.Printf("end-to-end wall time %s\n",finish)
+	fmt.Printf("sbox cpu %d", sbox_cpu)
+	fmt.Println(string(plain_text_bytes[:]))
 }
 
 func decrypt(state STATE, key_schedule [44]uint32) STATE {
