@@ -155,7 +155,7 @@ func (dec_state STATE) inv_lookup() STATE {
 	}
 	return dec_state
 }
-func (enc_state *STATE) lookup() {
+func (enc_state *STATE) lookup() STATE {
 	box := get_sbox()
 	for row := 0; row < 4; row++ {
 		for col := 0; col < 4; col++ {
@@ -165,5 +165,6 @@ func (enc_state *STATE) lookup() {
 			*b = box[i][j]
 		}
 	}
+	return *enc_state
 
 }

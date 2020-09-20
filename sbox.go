@@ -93,7 +93,7 @@ func get_inv_sbox() [16][16]byte {
 	return box2
 }
 
-func get_key_schedule(key [16]byte) [44]uint32 {
+func get_key_schedule(key []byte) [44]uint32 {
 	words := [44]uint32{}
 	for i := 0; i < 4; i++ {
 		words[i] = binary.BigEndian.Uint32(key[4*i : 4*i+4])
