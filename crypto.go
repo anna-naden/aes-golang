@@ -32,15 +32,9 @@ type SBOX_LOOKER_UPPER interface {
 	lookup() STATE
 }
 
-var g_cache = [256][256]byte{}
 var sbox_cpu = int32(0)
 
 func main() {
-	for i:=0; i<256; i++ {
-		for j:=0; j<256; j++ {
-			g_cache[i][j]=GMul(byte(i),byte(j))
-		}
-	}
 	do_stallings := false
 	if do_stallings {
 		stallings()
@@ -79,21 +73,24 @@ func crypto_challenge() {
 	plain_text_bytes := [16]byte{}
 	start := time.Now()
 	cpu1 := C.getThreadCpuTimeNs()
-	for j := 0; j+15 < len(cipher_text_bytes); j += 16 {
-		for i := 0; i < 16; i++ {
-			block[i] = byte(cipher_text_bytes[i+j])
+	num_passes := 10
+	for i:=0; i<num_passes; i++ {
+			for j := 0; j+15 < len(cipher_text_bytes); j += 16 {
+			for i := 0; i < 16; i++ {
+				block[i] = byte(cipher_text_bytes[i+j])
+			}
+			state := decrypt(make_decryption_state(cipher_text_bytes[j:j+16]), get_key_schedule(key_bytes[:]))
+			plain_text_bytes = unpackState(state)
+			fmt.Println(string(plain_text_bytes[:]))
+			w.WriteString(string(plain_text_bytes[:]))
 		}
-		state := decrypt(make_decryption_state(cipher_text_bytes[j:j+16]), get_key_schedule(key_bytes[:]))
-		plain_text_bytes = unpackState(state)
-		fmt.Println(string(plain_text_bytes[:]))
-		w.WriteString(string(plain_text_bytes[:]))
+		w.Flush()
 	}
-	w.Flush()
 	cpu2 := C.getThreadCpuTimeNs()
-	fmt.Printf("end-to-end cpu %d ns",(cpu2-cpu1))
+	fmt.Printf("end-to-end cpu per pass %d ns",int32(cpu2-cpu1)/int32(num_passes))
 	fmt.Println("")
 	finish :=time.Since(start)
-	fmt.Printf("end-to-end wall time %s\n",finish)
+	fmt.Printf("end-to-end wall time per pass %f microseconds\n",float32(finish)/float32(num_passes*1000))
 	fmt.Printf("sbox cpu %d", sbox_cpu)
 	fmt.Println(string(plain_text_bytes[:]))
 }

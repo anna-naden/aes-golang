@@ -27,11 +27,20 @@ func (state STATE) add_round_key(key [4][4]byte) STATE {
 	return out
 }
 
+var g_cache_fetched = false
+var g_cache = [256][256]byte{}
 func (s STATE) inv_mix_columns() STATE{
-	// The first index is the row
-	ss := STATE{}
-	use_cache:=true
-	if use_cache {
+	if !g_cache_fetched {
+		for i:=0; i<256; i++ {
+			for j:=0; j<256; j++ {
+				g_cache[i][j]=GMul(byte(i),byte(j))
+			}
+		}
+		g_cache_fetched = true
+	}
+	f:= func(s STATE)STATE{
+		// The first index is the row
+		ss := STATE{}
 		for c := 0; c < 4; c++ {
 			ss[0][c] =
 				g_cache[0x0e][s[0][c]] ^
@@ -55,32 +64,33 @@ func (s STATE) inv_mix_columns() STATE{
 					g_cache[0x0e][s[3][c]]
 		}
 		return ss
-	
 	}
-	for c := 0; c < 4; c++ {
-		ss[0][c] =
-			GMul(0x0e, s[0][c]) ^
-				GMul(0x0b, s[1][c]) ^
-				GMul(0x0d, s[2][c]) ^
-				GMul(0x09, s[3][c])
-		ss[1][c] =
-			GMul(0x09, s[0][c]) ^
-				GMul(0x0e, s[1][c]) ^
-				GMul(0x0b, s[2][c]) ^
-				GMul(0x0d, s[3][c])
-		ss[2][c] =
-			GMul(0x0d, s[0][c]) ^
-				GMul(0x09, s[1][c]) ^
-				GMul(0x0e, s[2][c]) ^
-				GMul(0x0b, s[3][c])
-		ss[3][c] =
-			GMul(0x0b, s[0][c]) ^
-				GMul(0x0d, s[1][c]) ^
-				GMul(0x09, s[2][c]) ^
-				GMul(0x0e, s[3][c])
-	}
-	return ss
+	return f(s)
 }
+// 	for c := 0; c < 4; c++ {
+// 		ss[0][c] =
+// 			GMul(0x0e, s[0][c]) ^
+// 				GMul(0x0b, s[1][c]) ^
+// 				GMul(0x0d, s[2][c]) ^
+// 				GMul(0x09, s[3][c])
+// 		ss[1][c] =
+// 			GMul(0x09, s[0][c]) ^
+// 				GMul(0x0e, s[1][c]) ^
+// 				GMul(0x0b, s[2][c]) ^
+// 				GMul(0x0d, s[3][c])
+// 		ss[2][c] =
+// 			GMul(0x0d, s[0][c]) ^
+// 				GMul(0x09, s[1][c]) ^
+// 				GMul(0x0e, s[2][c]) ^
+// 				GMul(0x0b, s[3][c])
+// 		ss[3][c] =
+// 			GMul(0x0b, s[0][c]) ^
+// 				GMul(0x0d, s[1][c]) ^
+// 				GMul(0x09, s[2][c]) ^
+// 				GMul(0x0e, s[3][c])
+// 	}
+// 	return ss
+// }
 
 func (input STATE) inv_shift_rows() STATE {
 	output := STATE{}
