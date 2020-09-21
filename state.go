@@ -34,33 +34,27 @@ func (s STATE) inv_mix_columns() STATE{
 		g_cache_fetched = true
 	}
 	f:= func(s STATE)STATE{
+		var mixer = [4][4]byte {
+			{0x0e, 0x0b, 0x0d, 0x09},
+			{0x09, 0x0e, 0x0b, 0x0d},
+			{0x0d, 0x09, 0x0e, 0x0b},
+			{0x0b, 0x0d, 0x09, 0x0e},
+		}
 		cpu_start := C.getThreadCpuTimeNs()
 		// The first index is the row
 		ss := STATE{}
-		for c := 0; c < 4; c++ {
-			ss[0][c] =
-				g_cache[0x0e][s[0][c]] ^
-					g_cache[0x0b] [s[1][c]] ^
-					g_cache[0x0d][s[2][c]] ^
-					g_cache[0x09][s[3][c]]
-			ss[1][c] =
-				g_cache[0x09][s[0][c]] ^
-					g_cache[0x0e][s[1][c]] ^
-					g_cache[0x0b][s[2][c]] ^
-					g_cache[0x0d][s[3][c]]
-			ss[2][c] =
-				g_cache[0x0d][s[0][c]] ^
-				g_cache[0x09][s[1][c]] ^
-					g_cache[0x0e][s[2][c]] ^
-					g_cache[0x0b][s[3][c]]
-			ss[3][c] =
-				g_cache[0x0b][s[0][c]] ^
-					g_cache[0x0d][s[1][c]] ^
-					g_cache[0x09][s[2][c]] ^
-					g_cache[0x0e][s[3][c]]
+		for row := 0; row<4; row ++ {
+			for col :=0; col<4; col++ {
+				matrix_element := byte(0)
+				for i:=0; i<4; i++ {
+					x:=mixer[row][i]
+					y := s[i][col]
+					matrix_element ^= g_cache[x][y]
+				}
+				ss[row][col] = matrix_element
+			}
 		}
 		cpu_used += uint32(C.getThreadCpuTimeNs() - cpu_start)
-
 		return ss
 	}
 	return f(s)
