@@ -18,10 +18,8 @@ import "C"
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -132,22 +130,4 @@ func encrypt(plaintext []byte, key_schedule [44]uint32) STATE {
 	round_key = make_key_matrix(key_schedule[4*round : 4*round+4])
 	state = state.add_round_key(round_key)
 	return state
-}
-func show_block(title string, data [16]byte) {
-	fmt.Println(title)
-	fmt.Println("")
-	fmt.Printf("%x", data)
-	fmt.Println("")
-}
-func get_cipher_bytes(path string) []byte {
-	base64sftr, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-	b64 := string(base64sftr)
-	cipher_text_bytes, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		panic(err)
-	}
-	return cipher_text_bytes
 }

@@ -24,14 +24,6 @@ func initializeState(theBytes []byte) STATE {
 	}
 	return out
 }
-func bytesToWord(ba [4]byte) uint32 {
-	var value uint32
-	value |= uint32(ba[0]) << 24
-	value |= uint32(ba[1]) << 16
-	value |= uint32(ba[2]) << 8
-	value |= uint32(ba[3])
-	return value
-}
 func make_key_matrix(words []uint32) [4][4]byte {
 	out := [4][4]byte{}
 	for row := 0; row < 4; row++ {
@@ -61,7 +53,10 @@ func g_aes(word uint32, j int) uint32 {
 		10: 0x36000000,
 	}
 	word2 := rotWord(word)
-	word2 = subWord(word2)
+	myBytes := make([]byte,4)
+	binary.BigEndian.PutUint32(myBytes,word2)
+	ba := sub_bytes(myBytes[:])
+	word2 = binary.BigEndian.Uint32(ba)
 	rc := round_constant[j]
 	return (word2 ^ rc)
 }
@@ -140,7 +135,9 @@ func unpackState(matrix STATE) [16]byte {
 	return out
 }
 func rotWord(word uint32) uint32 {
-	ba := wordToBytes(word)
+	ba:=make([]byte,4)
+	binary.BigEndian.PutUint32(ba,word)
+	// ba := wordToBytes(word)
 	b0 := ba[0]
 	var ba2 [4]byte
 	ba2 = [4]byte{}
@@ -148,7 +145,7 @@ func rotWord(word uint32) uint32 {
 		ba2[i] = ba[i+1]
 	}
 	ba2[3] = b0
-	return (bytesToWord(ba2))
+	return binary.BigEndian.Uint32(ba2[:])
 }
 func get_sbox() [16][16]byte {
 	box := [256]byte{
@@ -175,21 +172,4 @@ func get_sbox() [16][16]byte {
 		}
 	}
 	return box2
-}
-
-func subWord(word uint32) uint32 {
-	myBytes := wordToBytes(word)
-	ba := sub_bytes(myBytes[:])
-	ba2 := [4]byte{ba[0], ba[1], ba[2], ba[3]}
-	return bytesToWord(ba2)
-
-}
-
-func wordToBytes(word uint32) [4]byte {
-	myBytes := [4]byte{
-		byte((word & 0xff000000) >> 24),
-		byte((word & 0xff0000) >> 16),
-		byte((word & 0xff00) >> 8),
-		byte(word & 0xff)}
-	return myBytes
 }
