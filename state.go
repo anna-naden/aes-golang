@@ -1,5 +1,4 @@
 package main
-
 /*
 #include <pthread.h>
 #include <time.h>
@@ -18,12 +17,11 @@ import "C"
 import "fmt"
 
 type STATE [4][4]byte
-
 var sbox_cpu = int32(0)
-
 var cpu_used = uint32(0)
 var g_cache_fetched = false
 var g_cache = [256][256]byte{}
+
 func (s STATE) inv_mix_columns() STATE{
 	if !g_cache_fetched {
 		for i:=0; i<256; i++ {
