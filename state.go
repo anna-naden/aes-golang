@@ -17,16 +17,11 @@ static long long getThreadCpuTimeNs() {
 import "C"
 import "fmt"
 
-func (state STATE) add_round_key(key [4][4]byte) STATE {
-	out := STATE{}
-	for row := 0; row < 4; row++ {
-		for col := 0; col < 4; col++ {
-			out[row][col] = state[row][col] ^ key[row][col]
-		}
-	}
-	return out
-}
+type STATE [4][4]byte
 
+var sbox_cpu = int32(0)
+
+var cpu_used = uint32(0)
 var g_cache_fetched = false
 var g_cache = [256][256]byte{}
 func (s STATE) inv_mix_columns() STATE{
@@ -39,6 +34,7 @@ func (s STATE) inv_mix_columns() STATE{
 		g_cache_fetched = true
 	}
 	f:= func(s STATE)STATE{
+		cpu_start := C.getThreadCpuTimeNs()
 		// The first index is the row
 		ss := STATE{}
 		for c := 0; c < 4; c++ {
@@ -63,9 +59,21 @@ func (s STATE) inv_mix_columns() STATE{
 					g_cache[0x09][s[2][c]] ^
 					g_cache[0x0e][s[3][c]]
 		}
+		cpu_used += uint32(C.getThreadCpuTimeNs() - cpu_start)
+
 		return ss
 	}
 	return f(s)
+}
+
+func (state STATE) add_round_key(key [4][4]byte) STATE {
+	out := STATE{}
+	for row := 0; row < 4; row++ {
+		for col := 0; col < 4; col++ {
+			out[row][col] = state[row][col] ^ key[row][col]
+		}
+	}
+	return out
 }
 
 func (input STATE) inv_shift_rows() STATE {
@@ -174,7 +182,6 @@ func sub_bytes(bytes []byte) []byte {
 		for _, b := range bytes {
 			col := b & 0xf
 			row := (b & 0xf0) >> 4
-			// box := get_sbox()
 			retval = append(retval, s_box[row][col])
 		}
 		return retval
@@ -192,7 +199,6 @@ func (dec_state STATE) inv_lookup() STATE {
 			inv_sbox = get_inv_sbox()
 			inv_sbox_fetched = true
 		}
-		// box := get_inv_sbox()
 		for row := 0; row < 4; row++ {
 			for col := 0; col < 4; col++ {
 				b := &(dec_state[row][col])

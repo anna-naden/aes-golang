@@ -55,10 +55,9 @@ func g_aes(word uint32, j int) uint32 {
 	word2 := rotWord(word)
 	myBytes := make([]byte,4)
 	binary.BigEndian.PutUint32(myBytes,word2)
-	ba := sub_bytes(myBytes[:])
+	ba := sub_bytes(myBytes)
 	word2 = binary.BigEndian.Uint32(ba)
-	rc := round_constant[j]
-	return (word2 ^ rc)
+	return (word2 ^ round_constant[j])
 }
 
 func get_inv_sbox() [16][16]byte {
@@ -89,12 +88,30 @@ func get_inv_sbox() [16][16]byte {
 }
 
 func get_key_schedule(key []byte) [44]uint32 {
+	var round_constant = map[int]uint32{
+		0:  0x00000,
+		1:  0x1000000,
+		2:  0x2000000,
+		3:  0x4000000,
+		4:  0x8000000,
+		5:  0x10000000,
+		6:  0x20000000,
+		7:  0x40000000,
+		8:  0x80000000,
+		9:  0x1b000000,
+		10: 0x36000000,
+	}
 	words := [44]uint32{}
 	for i := 0; i < 4; i++ {
 		words[i] = binary.BigEndian.Uint32(key[4*i : 4*i+4])
 	}
 	for i := 1; i < 11; i++ {
-		g := g_aes(words[4*i-1], i)
+		word2 := rotWord(words[4*i-1])
+		myBytes := make([]byte,4)
+		binary.BigEndian.PutUint32(myBytes, word2)
+		ba := sub_bytes(myBytes)
+		word2 = binary.BigEndian.Uint32(ba)
+		g := word2^round_constant[i]
 		words[4*i] = words[4*i-4] ^ g
 		words[4*i+1] = words[4*i-3] ^ words[4*i]
 		words[4*i+2] = words[4*i-2] ^ words[4*i+1]
@@ -106,6 +123,7 @@ func get_key_schedule(key []byte) [44]uint32 {
 	}
 	return retval
 }
+
 //Multiplication in a Galois field or order 256
 func galois_multiply(a byte, b byte) byte {
 	p := byte(0)
