@@ -107,7 +107,7 @@ func get_key_schedule(key []byte) [44]uint32 {
 	return retval
 }
 //Multiplication in a Galois field or order 256
-func GMul(a byte, b byte) byte {
+func galois_multiply(a byte, b byte) byte {
 	p := byte(0)
 	for counter := 0; counter < 8; counter++ {
 		if (b & 1) != 0 {

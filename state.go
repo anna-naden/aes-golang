@@ -33,7 +33,7 @@ func (s STATE) inv_mix_columns() STATE{
 	if !g_cache_fetched {
 		for i:=0; i<256; i++ {
 			for j:=0; j<256; j++ {
-				g_cache[i][j]=GMul(byte(i),byte(j))
+				g_cache[i][j]=galois_multiply(byte(i),byte(j))
 			}
 		}
 		g_cache_fetched = true
@@ -67,30 +67,6 @@ func (s STATE) inv_mix_columns() STATE{
 	}
 	return f(s)
 }
-// 	for c := 0; c < 4; c++ {
-// 		ss[0][c] =
-// 			GMul(0x0e, s[0][c]) ^
-// 				GMul(0x0b, s[1][c]) ^
-// 				GMul(0x0d, s[2][c]) ^
-// 				GMul(0x09, s[3][c])
-// 		ss[1][c] =
-// 			GMul(0x09, s[0][c]) ^
-// 				GMul(0x0e, s[1][c]) ^
-// 				GMul(0x0b, s[2][c]) ^
-// 				GMul(0x0d, s[3][c])
-// 		ss[2][c] =
-// 			GMul(0x0d, s[0][c]) ^
-// 				GMul(0x09, s[1][c]) ^
-// 				GMul(0x0e, s[2][c]) ^
-// 				GMul(0x0b, s[3][c])
-// 		ss[3][c] =
-// 			GMul(0x0b, s[0][c]) ^
-// 				GMul(0x0d, s[1][c]) ^
-// 				GMul(0x09, s[2][c]) ^
-// 				GMul(0x0e, s[3][c])
-// 	}
-// 	return ss
-// }
 
 func (input STATE) inv_shift_rows() STATE {
 	output := STATE{}
@@ -135,10 +111,10 @@ func (input STATE) inv_shift_rows() STATE {
 func (s STATE) MixColumns() STATE {
 	ss := [4][4]byte{}
 	for c := 0; c < 4; c++ {
-		ss[0][c] = (GMul(0x02, s[0][c]) ^ GMul(0x03, s[1][c]) ^ s[2][c] ^ s[3][c])
-		ss[1][c] = (s[0][c] ^ GMul(0x02, s[1][c]) ^ GMul(0x03, s[2][c]) ^ s[3][c])
-		ss[2][c] = (s[0][c] ^ s[1][c] ^ GMul(0x02, s[2][c]) ^ GMul(0x03, s[3][c]))
-		ss[3][c] = (GMul(0x03, s[0][c]) ^ s[1][c] ^ s[2][c] ^ GMul(0x02, s[3][c]))
+		ss[0][c] = (galois_multiply(0x02, s[0][c]) ^ galois_multiply(0x03, s[1][c]) ^ s[2][c] ^ s[3][c])
+		ss[1][c] = (s[0][c] ^ galois_multiply(0x02, s[1][c]) ^ galois_multiply(0x03, s[2][c]) ^ s[3][c])
+		ss[2][c] = (s[0][c] ^ s[1][c] ^ galois_multiply(0x02, s[2][c]) ^ galois_multiply(0x03, s[3][c]))
+		ss[3][c] = (galois_multiply(0x03, s[0][c]) ^ s[1][c] ^ s[2][c] ^ galois_multiply(0x02, s[3][c]))
 	}
 
 	return ss
